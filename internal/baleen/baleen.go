@@ -19,31 +19,26 @@ func ExportTrelloBoard(boardName string) {
 	// Process every single card and extract the information we want to export
 	for _, list := range lists {
 		for _, card := range trello.GetCardsInList(list.Id) {
-			if card.Badges.Attachments > 0 || card.Badges.Comments > 0 {
-				var labels []Label
+			var labels []Label
 
-				for _, label := range card.Labels {
-					labels = append(labels, Label{label.Name, label.Color})
-				}
-
-				baleenCard := Card{
-					Id:             card.Id,
-					Name:           card.Name,
-					ParentListName: list.Name,
-					Labels:         labels,
-					LastUpdate:     card.LastUpdate,
-					IsSpecial:      (card.Badges.Attachments > 0 || card.Badges.Comments > 0),
-					Comments:       make([]string, 0),
-					Attachments:    make([]Attachment, 0),
-				}
-
-				cards = append(cards, baleenCard)
+			for _, label := range card.Labels {
+				labels = append(labels, Label{label.Name, label.Color})
 			}
+
+			cards = append(cards, Card{
+				Id:             card.Id,
+				Name:           card.Name,
+				ParentListName: list.Name,
+				Labels:         labels,
+				LastUpdate:     card.LastUpdate,
+				IsSpecial:      (card.Badges.Attachments > 0 || card.Badges.Comments > 0),
+				Comments:       make([]string, 0),
+				Attachments:    make([]Attachment, 0),
+			})
 		}
 	}
 
 	specialCards := processSpecialCards(cards)
-	log.Printf("special cards: %v\n", specialCards)
 
 	var normalCards []Card
 	for _, card := range cards {
@@ -52,8 +47,10 @@ func ExportTrelloBoard(boardName string) {
 		}
 	}
 
-	all_cards := append(normalCards, specialCards...)
-	file, _ := json.MarshalIndent(all_cards, "", " ")
+	var allCards []Card
+	allCards = append(allCards, normalCards...)
+	allCards = append(allCards, specialCards...)
+	file, _ := json.MarshalIndent(allCards, "", " ")
 	_ = ioutil.WriteFile("data/trello.json", file, 0644)
 }
 
@@ -73,26 +70,29 @@ func processSpecialCards(cards []Card) []Card {
 	var updatedSpecials []Card
 	for _, chunk := range chunks {
 		c := make(chan []Card)
-		go retrieveSpecial(chunk, c)
-		fullSpecials := <-c
-		updatedSpecials = append(updatedSpecials, fullSpecials...)
+		go retrieveSpecial(chunk[:len(chunk)/2], c)
+		go retrieveSpecial(chunk[len(chunk)/2:], c)
+
+		fullSpecialsLeft, fullSpecialsRight := <-c, <-c
+		updatedSpecials = append(updatedSpecials, fullSpecialsLeft...)
+		updatedSpecials = append(updatedSpecials, fullSpecialsRight...)
 	}
 
 	return updatedSpecials
 }
 
 func retrieveSpecial(cards []Card, c chan []Card) {
-	newCards := make([]Card, len(cards))
+	var newCards []Card
 	for _, card := range cards {
-		full_card := trello.GetFullCard(card.Id)
+		fullCard := trello.GetFullCard(card.Id)
 
 		// Load comments
-		for _, comment := range full_card.Actions {
+		for _, comment := range fullCard.Actions {
 			card.Comments = append(card.Comments, comment.Data.Text)
 		}
 
 		// Load attachments
-		for _, attachment := range full_card.Attachments {
+		for _, attachment := range fullCard.Attachments {
 			card.Attachments = append(card.Attachments, Attachment{
 				IsUpload: attachment.IsUpload,
 				Name:     attachment.Name,
