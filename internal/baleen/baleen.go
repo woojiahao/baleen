@@ -2,9 +2,10 @@ package baleen
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
+	"path"
 
 	"github.com/woojiahao/baleen/internal/api/trello"
 )
@@ -50,8 +51,11 @@ func ExportTrelloBoard(boardName string) {
 	var allCards []Card
 	allCards = append(allCards, normalCards...)
 	allCards = append(allCards, specialCards...)
+
 	file, _ := json.MarshalIndent(allCards, "", " ")
-	_ = ioutil.WriteFile("data/trello.json", file, 0644)
+	exportPath := path.Join("data", fmt.Sprintf("%s-trello.json", CreateTimestamp()))
+	_ = ioutil.WriteFile(exportPath, file, 0644)
+	log.Printf("Export to %s\n", exportPath)
 }
 
 // To speed up the processing of special cards, we will attempt to parallelize the API calls
@@ -66,7 +70,7 @@ func processSpecialCards(cards []Card) []Card {
 	}
 
 	// TODO: Unit test this to ensure that it's actually running in parallel
-	chunks := chunkEvery(specialCards, 10)
+	chunks := ChunkEvery(specialCards, 10)
 	var updatedSpecials []Card
 	for _, chunk := range chunks {
 		c := make(chan []Card)
@@ -105,23 +109,4 @@ func retrieveSpecial(cards []Card, c chan []Card) {
 	}
 
 	c <- newCards
-}
-
-func chunkEvery(cards []Card, n int) [][]Card {
-	totalChunks := int(math.Ceil(float64(len(cards)) / float64(n)))
-	chunks := make([][]Card, totalChunks)
-
-	for i := range chunks {
-		chunks[i] = make([]Card, n)
-	}
-
-	for r := 0; r < totalChunks; r++ {
-		for c := 0; c < n; c++ {
-			if r*10+c < len(cards) {
-				chunks[r][c] = cards[r*10+c]
-			}
-		}
-	}
-
-	return chunks
 }
