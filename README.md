@@ -15,6 +15,10 @@ Create a file `.env` at the root of the project directory with the following fie
 # .env
 # Create Trello API key here: https://trello.com/app-key
 TRELLO_API_KEY=<>
+# Create Trello token by selecting "Token" in the page above
+TRELLO_TOKEN=<>
+# Get target Trello board ID, follow instructions here: https://community.atlassian.com/t5/Trello-questions/How-to-get-Trello-Board-ID/qaq-p/1347525
+TRELLO_BOARD_ID=<>
 # Create Notion Integration key here: https://www.notion.so/my-integrations
 NOTION_INTEGRATION_KEY=<>
 ```
