@@ -9,15 +9,15 @@ import (
 )
 
 func buildUrl(base, endpoint string, queryParams map[string]string) (*url.URL, error) {
-	baseUrl, err := url.Parse(base)
-	baseUrl.Path = path.Join(baseUrl.Path, endpoint)
-	q := baseUrl.Query()
+	url, err := url.Parse(base)
+	url.Path = path.Join(url.Path, endpoint)
+	log.Printf("Url: %s\n", url.String())
+	q := url.Query()
 	for k, v := range queryParams {
 		q.Set(k, v)
 	}
-	baseUrl.RawQuery = q.Encode()
-	log.Printf("Url: %s\n", baseUrl.String())
-	return baseUrl, err
+	url.RawQuery = q.Encode()
+	return url, err
 }
 
 func Get(base, endpoint string, queryParams map[string]string) []byte {

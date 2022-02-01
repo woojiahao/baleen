@@ -13,13 +13,6 @@ const (
 	trelloApi = "https://api.trello.com/1"
 )
 
-type SearchBoardsResult struct {
-	Boards []struct {
-		Id   string
-		Name string
-	}
-}
-
 func baseQueryParams() map[string]string {
 	_ = godotenv.Load(".env")
 	return map[string]string{
@@ -38,15 +31,43 @@ func FindBoardIdByName(name string) string {
 	queryParams["query"] = name
 	resp := api.Get(trelloApi, "/search", queryParams)
 
-	var results SearchBoardsResult
+	var results TrelloSearchBoards
 	json.Unmarshal(resp, &results)
 
 	return results.Boards[0].Id
 }
 
-func GetLists() {
+func GetListsInBoard(boardId string) []TrelloBoardLists {
 	queryParams := baseQueryParams()
-	boardId := os.Getenv("TRELLO_BOARD_ID")
 	queryParams["filter"] = "open"
-	api.Get(trelloApi, fmt.Sprintf("/boards/%s/lists", boardId), queryParams)
+	resp := api.Get(trelloApi, fmt.Sprintf("/boards/%s/lists", boardId), queryParams)
+
+	var results []TrelloBoardLists
+	json.Unmarshal(resp, &results)
+
+	return results
+}
+
+func GetCardsInList(listId string) []TrelloBasicCard {
+	resp := api.Get(trelloApi, fmt.Sprintf("/lists/%s/cards", listId), baseQueryParams())
+
+	var cards []TrelloBasicCard
+	json.Unmarshal(resp, &cards)
+
+	return cards
+}
+
+func GetFullCard(cardId string) TrelloFullCard {
+	params := baseQueryParams()
+	params["actions"] = "commentCard"
+	params["attachments"] = "true"
+	params["fields"] = "name"
+	params["attachment_fields"] = "all"
+
+	resp := api.Get(trelloApi, fmt.Sprintf("/cards/%s", cardId), params)
+
+	var card TrelloFullCard
+	json.Unmarshal(resp, &card)
+
+	return card
 }
