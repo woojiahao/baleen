@@ -14,5 +14,6 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	baleen.ExportTrelloBoard("Programming Bucket")
+	exportPath := baleen.ExportTrelloBoard("Programming Bucket")
+	baleen.ImportToNotion(exportPath)
 }

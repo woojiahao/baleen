@@ -11,42 +11,41 @@ import (
 )
 
 // For every card that is found, we will want to extract any comments and attachments found
-func ExportTrelloBoard(boardName string) {
+func ExportTrelloBoard(boardName string) string {
 	programmingBucketId := trello.FindBoardIdByName(boardName)
 	lists := trello.GetListsInBoard(programmingBucketId)
 
-	var cards []Card
+	var specialCards, normalCards []Card
 
 	// Process every single card and extract the information we want to export
 	for _, list := range lists {
-		for _, card := range trello.GetCardsInList(list.Id) {
+		for _, trelloCard := range trello.GetCardsInList(list.Id) {
 			var labels []Label
 
-			for _, label := range card.Labels {
+			for _, label := range trelloCard.Labels {
 				labels = append(labels, Label{label.Name, label.Color})
 			}
 
-			cards = append(cards, Card{
-				Id:             card.Id,
-				Name:           card.Name,
+			card := Card{
+				Id:             trelloCard.Id,
+				Name:           trelloCard.Name,
 				ParentListName: list.Name,
 				Labels:         labels,
-				LastUpdate:     card.LastUpdate,
-				IsSpecial:      (card.Badges.Attachments > 0 || card.Badges.Comments > 0),
+				LastUpdate:     trelloCard.LastUpdate,
+				IsSpecial:      (trelloCard.Badges.Attachments > 0 || trelloCard.Badges.Comments > 0),
 				Comments:       make([]string, 0),
 				Attachments:    make([]Attachment, 0),
-			})
+			}
+
+			if card.IsSpecial {
+				specialCards = append(specialCards, card)
+			} else {
+				normalCards = append(normalCards, card)
+			}
 		}
 	}
 
-	specialCards := processSpecialCards(cards)
-
-	var normalCards []Card
-	for _, card := range cards {
-		if !card.IsSpecial {
-			normalCards = append(normalCards, card)
-		}
-	}
+	specialCards = processSpecialCards(specialCards)
 
 	var allCards []Card
 	allCards = append(allCards, normalCards...)
@@ -56,19 +55,14 @@ func ExportTrelloBoard(boardName string) {
 	exportPath := path.Join("data", fmt.Sprintf("%s-trello.json", CreateTimestamp()))
 	_ = ioutil.WriteFile(exportPath, file, 0644)
 	log.Printf("Export to %s\n", exportPath)
+
+	return exportPath
 }
 
 // To speed up the processing of special cards, we will attempt to parallelize the API calls
 // Given the rate limit of 100 requests/10s or 10 requests/s, we will dispatch 10 goroutines at a time to process 10
 // cards simultaneously
-func processSpecialCards(cards []Card) []Card {
-	var specialCards []Card
-	for _, card := range cards {
-		if card.IsSpecial {
-			specialCards = append(specialCards, card)
-		}
-	}
-
+func processSpecialCards(specialCards []Card) []Card {
 	// TODO: Unit test this to ensure that it's actually running in parallel
 	chunks := ChunkEvery(specialCards, 10)
 	var updatedSpecials []Card
