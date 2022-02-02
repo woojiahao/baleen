@@ -79,7 +79,7 @@ func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
 	chunks := ChunkEvery(specialCards, 10)
 
 	var updatedSpecials []Card
-	for _, chunk := range chunks {
+	for i, chunk := range chunks {
 		c := make(chan []Card)
 		go parallelProcessSpecial(client, chunk[:len(chunk)/2], c)
 		go parallelProcessSpecial(client, chunk[len(chunk)/2:], c)
@@ -87,6 +87,8 @@ func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
 		specialLeft, specialRight := <-c, <-c
 		updatedSpecials = append(updatedSpecials, specialLeft...)
 		updatedSpecials = append(updatedSpecials, specialRight...)
+
+		log.Printf("Processes %d/%d\n", i+1, len(chunks))
 	}
 
 	return updatedSpecials
@@ -94,16 +96,12 @@ func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
 
 func parallelProcessSpecial(client *trello.Client, specialCards []Card, c chan []Card) {
 	var cards []Card
-	var ids []string
 	for _, card := range specialCards {
 		comments, attachments := getSpecial(client, card.Id)
 		card.Comments = comments
 		card.Attachments = attachments
 		cards = append(cards, card)
-		ids = append(ids, card.Id)
 	}
-
-	log.Printf("Processed %v\n", ids)
 
 	c <- cards
 }
