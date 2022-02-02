@@ -5,6 +5,7 @@ package baleen
 type Card struct {
 	Id             string
 	Name           string
+	Description    string
 	ParentListName string
 	Labels         []Label
 	LastUpdate     string
