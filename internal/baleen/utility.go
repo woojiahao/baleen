@@ -1,7 +1,6 @@
 package baleen
 
 import (
-	"fmt"
 	"math"
 	"time"
 )
@@ -31,8 +30,7 @@ func ChunkEvery(cards []Card, n int) [][]Card {
 	return chunks
 }
 
-func CreateTimestamp() string {
-	now := time.Now()
-	timestamp := now.Format("2006-02-01-15-04-05")
+func FormatTime(time time.Time) string {
+	timestamp := time.Format("2006-02-01-15-04-05")
 	return timestamp
 }

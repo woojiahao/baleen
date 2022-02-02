@@ -23,5 +23,4 @@ type Attachment struct {
 	IsUpload bool
 	Name     string
 	Url      string
-	Filename string
 }
