@@ -49,3 +49,5 @@ func UpdateDatabaseProperties(databaseId string, properties NotionProperties) {
 	resp := api.Patch(notionApi, fmt.Sprintf("/databases/%s", databaseId), headers(), body)
 	log.Printf("updated: %v\n", string(resp))
 }
+
+func AddPageToDatabase(databaseId string, properties NotionProperties, children )

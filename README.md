@@ -45,3 +45,7 @@ and their mouths contain baleen plates to act as filters for planktonic creature
 I chose Go for this project as I wanted to access both the Trello and Notion APIs hassle-free while building a CLI. I
 did not choose to use Javascript (even though there are pre-built libraries for each API) because I want to experiment
 with the latest Go features.
+
+## TODO
+
+- [ ] Migrate any image attachments to be hosted on Google Drive and embed them into the page

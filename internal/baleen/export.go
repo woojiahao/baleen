@@ -11,6 +11,8 @@ import (
 )
 
 // For every card that is found, we will want to extract any comments and attachments found
+// TODO: Map the colors of a card to a valid color in Notion
+// TODO: Add a function to allow single process that will also archive all cards in a given list
 func ExportTrelloBoard(boardName string) string {
 	programmingBucketId := trello.FindBoardIdByName(boardName)
 	lists := trello.GetListsInBoard(programmingBucketId)
