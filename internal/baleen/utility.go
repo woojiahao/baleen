@@ -34,3 +34,20 @@ func FormatTime(time time.Time) string {
 	timestamp := time.Format("2006-02-01-15-04-05")
 	return timestamp
 }
+
+func Contains(s string, arr []string) bool {
+	for _, x := range arr {
+		if x == s {
+			return true
+		}
+	}
+
+	return false
+}
+
+func FirstItem(d map[string]string) (string, string) {
+	for k, v := range d {
+		return k, v
+	}
+	return "null", "null"
+}

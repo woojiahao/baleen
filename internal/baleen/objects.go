@@ -1,5 +1,7 @@
 package baleen
 
+import "time"
+
 // TODO: Change the attachment configuration
 // Special cards are cards with attachments and comments
 type Card struct {
@@ -8,7 +10,7 @@ type Card struct {
 	Description    string
 	ParentListName string
 	Labels         []Label
-	LastUpdate     string
+	LastUpdate     *time.Time
 	IsSpecial      bool
 	Comments       []string
 	Attachments    []Attachment

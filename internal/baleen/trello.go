@@ -13,7 +13,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// TODO: Parallelize extraction of special data
 func ExtractTrelloBoard(boardName string) []Card {
 	log.Printf("Extracting Trello board %s\n", boardName)
 
@@ -43,7 +42,7 @@ func ExtractTrelloBoard(boardName string) []Card {
 				Description:    card.Desc,
 				ParentListName: list.Name,
 				Labels:         labels,
-				LastUpdate:     FormatTime(*card.DateLastActivity),
+				LastUpdate:     card.DateLastActivity,
 				IsSpecial:      isSpecial,
 				Comments:       []string{},
 				Attachments:    []Attachment{},
@@ -130,7 +129,7 @@ func getSpecial(client *trello.Client, cardId string) ([]string, []Attachment) {
 
 	for _, attachment := range specialCard.Attachments {
 		attachments = append(attachments, Attachment{
-			IsUpload: false,
+			IsUpload: attachment.IsUpload,
 			Name:     attachment.Name,
 			Url:      attachment.URL,
 		})

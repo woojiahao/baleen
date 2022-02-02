@@ -16,25 +16,6 @@ func main() {
 
 	// cards := baleen.ExtractTrelloBoard("Programming Bucket")
 	// baleen.SaveCards(cards)
-
-	baleen.ImportToNotion("data/2022-02-02-15-19-00-trello.json")
-
-	// notion.UpdateDatabaseProperties(
-	// 	"d583efbe-a96d-49ca-afc5-9d7566c051da",
-	// 	notion.NotionProperties{
-	// 		"diff": notion.NotionProperty{
-	// 			string(notion.RichText): notion.NotionPropertyBody{
-	// 				MultiSelectOptions: nil,
-	// 			},
-	// 		},
-	// 		"multi": notion.NotionProperty{
-	// 			string(notion.MultiSelect): notion.NotionPropertyBody{
-	// 				MultiSelectOptions: []notion.NotionMultiSelect{
-	// 					{Name: "Something", Color: "blue"},
-	// 					{Name: "Something Else", Color: "green"},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// )
+	cards := baleen.LoadCardsFromExport("data/2022-02-02-20-27-35-trello.json")
+	baleen.ImportToNotion(cards)
 }
