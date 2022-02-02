@@ -45,13 +45,27 @@ func Get(base, endpoint string, queryParams map[string]string) []byte {
 }
 
 func Post(base, endpoint string, headers map[string]string, body map[string]string) []byte {
+	return requestWithHeadersAndBody("POST", base, endpoint, headers, body)
+}
+
+func Patch(base, endpoint string, headers map[string]string, body map[string]string) []byte {
+	return requestWithHeadersAndBody("PATCH", base, endpoint, headers, body)
+}
+
+func requestWithHeadersAndBody(method, base, endpoint string, headers, body map[string]string) []byte {
 	url, err := buildUrl(base, endpoint, map[string]string{})
 	if err != nil {
 		panic(err)
 	}
 
-	encodedBody, _ := json.Marshal(body)
-	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(encodedBody))
+	// TODO: Talk about having to parse any body as a raw messsage to avoid escaping the " in a nested JSON - in UpdateDatabaseProperties
+	rawBody := make(map[string]*json.RawMessage)
+	for k, v := range body {
+		rawProperty := json.RawMessage(v)
+		rawBody[k] = &(rawProperty)
+	}
+	encodedBody, _ := json.Marshal(rawBody)
+	req, err := http.NewRequest(method, url.String(), bytes.NewBuffer(encodedBody))
 	if err != nil {
 		panic(err)
 	}
