@@ -29,6 +29,7 @@ func ExportTrelloBoard(boardName string) string {
 			card := Card{
 				Id:             trelloCard.Id,
 				Name:           trelloCard.Name,
+				Description:    trelloCard.Description,
 				ParentListName: list.Name,
 				Labels:         labels,
 				LastUpdate:     trelloCard.LastUpdate,
@@ -44,6 +45,8 @@ func ExportTrelloBoard(boardName string) string {
 			}
 		}
 	}
+
+	log.Printf("Exporting %d special cards and %d normal cards", len(specialCards), len(normalCards))
 
 	specialCards = processSpecialCards(specialCards)
 
