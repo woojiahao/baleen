@@ -21,8 +21,8 @@ func ChunkEvery(cards []Card, n int) [][]Card {
 
 	for r := 0; r < totalChunks; r++ {
 		for c := 0; c < n; c++ {
-			if r*10+c < len(cards) {
-				chunks[r][c] = cards[r*10+c]
+			if r*n+c < len(cards) {
+				chunks[r][c] = cards[r*n+c]
 			}
 		}
 	}

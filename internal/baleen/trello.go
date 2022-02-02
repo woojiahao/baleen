@@ -22,7 +22,7 @@ func ExtractTrelloBoard(boardName string) []Card {
 	boards, _ := client.SearchBoards(boardName)
 	lists, _ := boards[0].GetLists()
 
-	var baleenCards []Card
+	var normalCards, specialCards []Card
 
 	for _, list := range lists {
 		log.Printf("Extracting %s\n", list.Name)
@@ -35,7 +35,7 @@ func ExtractTrelloBoard(boardName string) []Card {
 				labels = append(labels, Label{label.Name, label.Color})
 			}
 
-			comments, attachments := getSpecial(client, card)
+			isSpecial := card.Badges.Attachments > 0 || card.Badges.Comments > 0
 
 			baleenCard := Card{
 				Id:             card.ID,
@@ -44,14 +44,24 @@ func ExtractTrelloBoard(boardName string) []Card {
 				ParentListName: list.Name,
 				Labels:         labels,
 				LastUpdate:     FormatTime(*card.DateLastActivity),
-				IsSpecial:      card.Badges.Attachments > 0 || card.Badges.Comments > 0,
-				Comments:       comments,
-				Attachments:    attachments,
+				IsSpecial:      isSpecial,
+				Comments:       []string{},
+				Attachments:    []Attachment{},
 			}
 
-			baleenCards = append(baleenCards, baleenCard)
+			if isSpecial {
+				specialCards = append(specialCards, baleenCard)
+			} else {
+				normalCards = append(normalCards, baleenCard)
+			}
 		}
 	}
+
+	specialCards = processSpecialCards(client, specialCards)
+
+	var baleenCards []Card
+	baleenCards = append(baleenCards, normalCards...)
+	baleenCards = append(baleenCards, specialCards...)
 
 	return baleenCards
 }
@@ -65,16 +75,46 @@ func SaveCards(cards []Card) string {
 	return exportPath
 }
 
-func getSpecial(client *trello.Client, card *trello.Card) (comments []string, attachments []Attachment) {
-	comments, attachments = []string{}, []Attachment{}
+func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
+	chunks := ChunkEvery(specialCards, 10)
 
-	if !(card.Badges.Attachments > 0 || card.Badges.Comments > 0) {
-		return
+	var updatedSpecials []Card
+	for _, chunk := range chunks {
+		c := make(chan []Card)
+		go parallelProcessSpecial(client, chunk[:len(chunk)/2], c)
+		go parallelProcessSpecial(client, chunk[len(chunk)/2:], c)
+
+		specialLeft, specialRight := <-c, <-c
+		updatedSpecials = append(updatedSpecials, specialLeft...)
+		updatedSpecials = append(updatedSpecials, specialRight...)
 	}
+
+	return updatedSpecials
+}
+
+func parallelProcessSpecial(client *trello.Client, specialCards []Card, c chan []Card) {
+	var cards []Card
+	var ids []string
+	for _, card := range specialCards {
+		comments, attachments := getSpecial(client, card.Id)
+		card.Comments = comments
+		card.Attachments = attachments
+		cards = append(cards, card)
+		ids = append(ids, card.Id)
+	}
+
+	log.Printf("Processed %v\n", ids)
+
+	c <- cards
+}
+
+func getSpecial(client *trello.Client, cardId string) ([]string, []Attachment) {
+	comments := []string{}
+	attachments := []Attachment{}
 
 	var specialCard *trello.Card
 	client.Get(
-		fmt.Sprintf("cards/%s", card.ID),
+		fmt.Sprintf("cards/%s", cardId),
 		map[string]string{
 			"actions":           "commentCard",
 			"attachments":       "true",
@@ -98,5 +138,5 @@ func getSpecial(client *trello.Client, card *trello.Card) (comments []string, at
 		})
 	}
 
-	return
+	return comments, attachments
 }
