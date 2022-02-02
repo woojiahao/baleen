@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -40,4 +42,36 @@ func Get(base, endpoint string, queryParams map[string]string) []byte {
 	}
 
 	return body
+}
+
+func Post(base, endpoint string, headers map[string]string, body map[string]string) []byte {
+	url, err := buildUrl(base, endpoint, map[string]string{})
+	if err != nil {
+		panic(err)
+	}
+
+	encodedBody, _ := json.Marshal(body)
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(encodedBody))
+	if err != nil {
+		panic(err)
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	return respBody
 }
