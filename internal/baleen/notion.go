@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/woojiahao/baleen/internal/config"
 )
 
 // TODO: Grab the mapping and create database pages if not present
@@ -22,14 +24,22 @@ func ImportToNotion(exportPath string) {
 	var cards []Card
 	json.Unmarshal(data, &cards)
 
-	special, normal := 0, 0
-	for _, card := range cards {
-		if card.IsSpecial {
-			special++
-		} else {
-			normal++
-		}
-	}
+	config := config.New("configs/conf.json")
+	prepareDatabases(config)
+}
 
-	log.Printf("special: %d, normal: %d, total: %d\n", special, normal, special+normal)
+func prepareDatabases(config *config.Config) {
+	databaseNames := config.DatabaseNames()
+
+	for _, name := range databaseNames {
+
+	}
+}
+
+function getDatabaseIdsFromNames(names []string) []string {
+	var ids []string
+
+	for _, name := range names {
+
+	}
 }

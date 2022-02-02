@@ -1,0 +1,18 @@
+{
+  "databaseMapping": {
+    "Project Ideas": "Project Ideas",
+    "To Learn": "To Learn",
+    "Questions": "Questions",
+    "Interesting Technologies": "Interesting Technologies",
+    "Articles": "Articles",
+    "Talks": "Videos",
+    "Blogs": "Blogs",
+    "Blog Posts": "Creative Ideas",
+    "Important Links": "Important Links"
+  },
+  "colorMapping": {
+    "lime": "green",
+    "sky": "blue",
+    "black": "gray"
+  }
+}

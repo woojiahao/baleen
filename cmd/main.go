@@ -14,8 +14,10 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	cards := baleen.ExtractTrelloBoard("Programming Bucket")
-	baleen.SaveCards(cards)
+	// cards := baleen.ExtractTrelloBoard("Programming Bucket")
+	// baleen.SaveCards(cards)
+
+	baleen.ImportToNotion("data/2022-02-02-15-19-00-trello.json")
 
 	// notion.UpdateDatabaseProperties(
 	// 	"d583efbe-a96d-49ca-afc5-9d7566c051da",
