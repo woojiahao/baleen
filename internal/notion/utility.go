@@ -112,16 +112,6 @@ func linkBlocks(items map[string]string) []na.BulletedListItemBlock {
 	return blocks
 }
 
-func toBlocks(blocks []na.Block) []na.Block {
-	var b []na.Block
-
-	for _, block := range blocks {
-		b = append(b, block)
-	}
-
-	return b
-}
-
 func basicBlock(t na.BlockType) na.BasicBlock {
 	return na.BasicBlock{
 		Object: na.ObjectTypeBlock,
@@ -130,7 +120,7 @@ func basicBlock(t na.BlockType) na.BasicBlock {
 }
 
 func richText(content, link string) []na.RichText {
-	if link == noLink {
+	if link != noLink {
 		return []na.RichText{
 			{
 				Text: na.Text{
