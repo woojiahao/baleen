@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"time"
 
@@ -13,21 +14,31 @@ import (
 	"github.com/woojiahao/baleen/internal/types"
 )
 
-func ExtractTrelloBoard(boardName string) []*types.Card {
+func ExportTrelloBoard(boardName, envPath string) []*types.Card {
 	log.Printf("Extracting Trello board %s\n", boardName)
 
-	env := env.New(".env")
+	env := env.New(envPath)
 	client := t.NewClient(env.TrelloKey, env.TrelloToken)
 
-	boards, _ := client.SearchBoards(boardName)
-	lists, _ := boards[0].GetLists()
+	boards, err := client.SearchBoards(boardName)
+	if err != nil {
+		log.Fatalf("Failed to find %s: %v\n", boardName, err)
+	}
+
+	lists, err := boards[0].GetLists()
+	if err != nil {
+		log.Fatalf("Failed to get lists of board %s: %v\n", boardName, err)
+	}
 
 	var normalCards, specialCards []*types.Card
 
 	for _, list := range lists {
 		log.Printf("Extracting %s\n", list.Name)
 
-		cards, _ := list.GetCards()
+		cards, err := list.GetCards()
+		if err != nil {
+			log.Fatalf("Failed to get cards from %s: %v\n", boardName, err)
+		}
 
 		for _, card := range cards {
 			var labels []*types.Label
@@ -63,17 +74,26 @@ func ExtractTrelloBoard(boardName string) []*types.Card {
 	specialCards = processSpecialCards(client, specialCards)
 
 	var typesCards []*types.Card
-	typesCards = append(typesCards, normalCards...)
 	typesCards = append(typesCards, specialCards...)
+	typesCards = append(typesCards, normalCards...)
 
 	return typesCards
 }
 
 func SaveCards(cards []*types.Card) string {
 	file, _ := json.MarshalIndent(cards, "", "  ")
-	exportPath := path.Join("data", fmt.Sprintf("%s-trello.json", types.FormatTime(time.Now())))
-	_ = ioutil.WriteFile(exportPath, file, 0644)
-	log.Printf("Export to %s\n", exportPath)
+	exportPath := path.Join("data", "saves", fmt.Sprintf("%s.json", types.FormatTime(time.Now())))
+	err := ioutil.WriteFile(exportPath, file, 0644)
+	if err != nil {
+		log.Printf("Creating data/saves/")
+		err := os.Mkdir(path.Join("data", "saves"), 0644)
+		if err != nil {
+			log.Fatalf("Failed to create save folder: %v\n", err)
+		}
+		ioutil.WriteFile(exportPath, file, 0644)
+	}
+
+	log.Printf("Exported to %s\n", exportPath)
 
 	return exportPath
 }
@@ -82,8 +102,9 @@ func processSpecialCards(client *t.Client, specialCards []*types.Card) []*types.
 	chunks := types.ChunkEvery(specialCards, 10)
 
 	var updatedSpecials []*types.Card
+	c := make(chan []*types.Card)
+
 	for i, chunk := range chunks {
-		c := make(chan []*types.Card)
 		go parallelProcessSpecial(client, chunk[:len(chunk)/2], c)
 		go parallelProcessSpecial(client, chunk[len(chunk)/2:], c)
 
@@ -91,8 +112,12 @@ func processSpecialCards(client *t.Client, specialCards []*types.Card) []*types.
 		updatedSpecials = append(updatedSpecials, specialLeft...)
 		updatedSpecials = append(updatedSpecials, specialRight...)
 
-		log.Printf("Processes %d/%d\n", i+1, len(chunks))
+		if (i+1)%10 == 0 {
+			log.Printf("Processed %d/%d\n", i+1, len(chunks))
+		}
 	}
+
+	log.Printf("Processed all special cards!")
 
 	return updatedSpecials
 }

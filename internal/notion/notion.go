@@ -6,10 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/jomei/notionapi"
-	"github.com/woojiahao/baleen/internal/baleen"
 	"github.com/woojiahao/baleen/internal/config"
+	"github.com/woojiahao/baleen/internal/env"
 	"github.com/woojiahao/baleen/internal/types"
 	"golang.org/x/net/context"
 )
@@ -51,28 +50,22 @@ func (a *attachments) toMap() map[string]string {
 
 // Import a set of cards into Notion. The cards should either be loaded from a file with LoadCardsFromExport or directly
 // from trello.ExtractTrelloBoard.
-func ImportToNotion(cards []*types.Card) {
+func ImportToNotion(cards []*types.Card, envPath, configPath string) {
 	log.Printf("Importing cards into Notion\n")
 
-	err := godotenv.Load(".env")
+	env := env.New(envPath)
+	notion := notionapi.NewClient(notionapi.Token(env.NotionKey))
 
-	if err != nil {
-		log.Fatalf("Failed to load .env: %v\n", err)
-	}
-
-	notionIntegrationKey := os.Getenv("NOTION_INTEGRATION_KEY")
-	notion := notionapi.NewClient(notionapi.Token(notionIntegrationKey))
-
-	config := config.New("configs/conf.json")
+	config := config.New(configPath)
 	nameIds := getDatabaseNameIds(notion, config.DatabaseNames())
 	labels := extractLabels(config, cards)
 
 	addDatabaseProperties(notion, nameIds, labels)
-	addCardToRespectiveDatabase(config, notion, nameIds, cards)
+	importCards(config, notion, nameIds, cards)
 }
 
-func LoadCardsFromExport(exportPath string) []*types.Card {
-	log.Printf("Loading cards from export path %s\n", exportPath)
+func LoadSave(exportPath string) []*types.Card {
+	log.Printf("Loading cards from save %s\n", exportPath)
 
 	jsonFile, err := os.Open(exportPath)
 	if err != nil {
@@ -89,31 +82,60 @@ func LoadCardsFromExport(exportPath string) []*types.Card {
 }
 
 // Add a card to its respective database
-func addCardToRespectiveDatabase(config *config.Config, notion *notionapi.Client, nameIds *databaseNameIds, cards []*Card) {
+func importCards(config *config.Config, notion *notionapi.Client, nameIds *databaseNameIds, cards []*types.Card) {
 	log.Printf("Adding cards to database")
 
-	for _, card := range cards {
-		log.Printf("Adding card %s\n", card.Name)
+	chunks := types.ChunkEvery(cards, 3)
+	c := make(chan bool, 3)
 
-		fileAttachments, urlAttachments := organizeAttachments(card)
+	for i, chunk := range chunks {
+		for _, card := range chunk {
+			go importCard(config, notion, nameIds, card, c)
+		}
 
-		_, pl := urlAttachments.first()
+		f, s, t := <-c, <-c, <-c
 
-		properties := createProperties(card, primaryLink(pl))
-		children := createChildren(fileAttachments, urlAttachments, card.Comments)
+		if !(f && s && t) {
+			log.Fatalf("Failed to import a card\n")
+		}
 
-		_, err := notion.Page.Create(context.Background(), &notionapi.PageCreateRequest{
-			Parent: notionapi.Parent{
-				DatabaseID: notionapi.DatabaseID((*nameIds)[databaseName(config.Database[card.ParentListName])]),
-			},
-			Properties: properties,
-			Children:   children,
-		})
-
-		if err != nil {
-			log.Fatalf("Error occurred when adding cards to database: %v\n", err)
+		if (i+1)%15 == 0 {
+			log.Printf("Imported %d/%d\n", i+1, len(chunks))
 		}
 	}
+
+	log.Printf("Imported all cards!")
+}
+
+func importCard(
+	config *config.Config,
+	notion *notionapi.Client,
+	nameIds *databaseNameIds,
+	card *types.Card,
+	c chan bool,
+) {
+	fileAttachments, urlAttachments := organizeAttachments(card)
+
+	_, pl := urlAttachments.first()
+
+	properties := createProperties(card, primaryLink(pl))
+	children := createChildren(fileAttachments, urlAttachments, card.Comments)
+
+	_, err := notion.Page.Create(context.Background(), &notionapi.PageCreateRequest{
+		Parent: notionapi.Parent{
+			DatabaseID: notionapi.DatabaseID((*nameIds)[databaseName(config.Database[card.ParentListName])]),
+		},
+		Properties: properties,
+		Children:   children,
+	})
+
+	log.Printf("Added card %s\n", card.Name)
+
+	if err != nil {
+		log.Fatalf("Error occurred when adding cards to database: %v\n", err)
+	}
+
+	c <- true
 }
 
 // Add the necessary properties for importing Trello information into a Notion card
@@ -190,7 +212,7 @@ func createChildren(fileAttachments, urlAttachments *attachments, comments []str
 	return children
 }
 
-func organizeLabels(labels []Label) []notionapi.Option {
+func organizeLabels(labels []*types.Label) []notionapi.Option {
 	var options []notionapi.Option
 	for _, label := range labels {
 		options = append(options, notionapi.Option{
@@ -200,7 +222,7 @@ func organizeLabels(labels []Label) []notionapi.Option {
 	return options
 }
 
-func organizeAttachments(card *Card) (fileAttachments, urlAttachments *attachments) {
+func organizeAttachments(card *types.Card) (fileAttachments, urlAttachments *attachments) {
 	files, urls := make(attachments), make(attachments)
 
 	for _, attachment := range card.Attachments {
@@ -216,7 +238,7 @@ func organizeAttachments(card *Card) (fileAttachments, urlAttachments *attachmen
 	return
 }
 
-func extractLabels(config *config.Config, cards []*Card) []*Label {
+func extractLabels(config *config.Config, cards []*types.Card) []*types.Label {
 	labelsMap := make(map[string]string)
 
 	for _, card := range cards {
@@ -229,9 +251,9 @@ func extractLabels(config *config.Config, cards []*Card) []*Label {
 		}
 	}
 
-	var labels []*Label
+	var labels []*types.Label
 	for name, color := range labelsMap {
-		labels = append(labels, &Label{name, color})
+		labels = append(labels, &types.Label{name, color})
 	}
 
 	return labels
@@ -250,7 +272,7 @@ func getDatabaseNameIds(notion *notionapi.Client, names []string) *databaseNameI
 	for _, result := range searchResp.Results {
 		r := result.(*notionapi.Database)
 		title := r.Title[0].Text.Content
-		if baleen.Contains(title, names) {
+		if contains(title, names) {
 			nameIds[databaseName(title)] = databaseId(r.ID.String())
 		}
 	}

@@ -6,10 +6,10 @@ import (
 )
 
 func Migrate(trelloBoardName, configPath, envPath string, toSave bool) {
-	cards := trello.ExtractTrelloBoard(trelloBoardName)
+	cards := trello.ExportTrelloBoard(trelloBoardName, envPath)
 	if toSave {
 		trello.SaveCards(cards)
 	}
 
-	notion.ImportToNotion(cards)
+	notion.ImportToNotion(cards, envPath, configPath)
 }
