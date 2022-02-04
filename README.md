@@ -48,4 +48,13 @@ with the latest Go features.
 
 ## TODO
 
+### Development
+
 - [ ] Migrate any image attachments to be hosted on Google Drive and embed them into the page
+- [ ] Ignore any attachments taht start with https://docs.google.com/viewer?embedded=true
+- [ ] Add support for image attachments
+- [ ]
+
+### Documentation
+
+- [ ] Talk about how the Notion API is incredibly nested and how certain values need to be explicitly filled in as the marshalled JSON does not include them by default

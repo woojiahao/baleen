@@ -1,27 +1,28 @@
-package baleen
+package trello
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"path"
 	"time"
 
-	"github.com/adlio/trello"
-	"github.com/joho/godotenv"
+	t "github.com/adlio/trello"
+	"github.com/woojiahao/baleen/internal/env"
+	"github.com/woojiahao/baleen/internal/types"
 )
 
-func ExtractTrelloBoard(boardName string) []Card {
+func ExtractTrelloBoard(boardName string) []*types.Card {
 	log.Printf("Extracting Trello board %s\n", boardName)
 
-	_ = godotenv.Load(".env")
-	client := trello.NewClient(os.Getenv("TRELLO_API_KEY"), os.Getenv("TRELLO_TOKEN"))
+	env := env.New(".env")
+	client := t.NewClient(env.TrelloKey, env.TrelloToken)
+
 	boards, _ := client.SearchBoards(boardName)
 	lists, _ := boards[0].GetLists()
 
-	var normalCards, specialCards []Card
+	var normalCards, specialCards []*types.Card
 
 	for _, list := range lists {
 		log.Printf("Extracting %s\n", list.Name)
@@ -29,14 +30,17 @@ func ExtractTrelloBoard(boardName string) []Card {
 		cards, _ := list.GetCards()
 
 		for _, card := range cards {
-			var labels []Label
+			var labels []*types.Label
 			for _, label := range card.Labels {
-				labels = append(labels, Label{label.Name, label.Color})
+				labels = append(labels, &types.Label{
+					Name:  label.Name,
+					Color: label.Color,
+				})
 			}
 
 			isSpecial := card.Badges.Attachments > 0 || card.Badges.Comments > 0
 
-			baleenCard := Card{
+			typesCard := &types.Card{
 				Id:             card.ID,
 				Name:           card.Name,
 				Description:    card.Desc,
@@ -45,41 +49,41 @@ func ExtractTrelloBoard(boardName string) []Card {
 				LastUpdate:     card.DateLastActivity,
 				IsSpecial:      isSpecial,
 				Comments:       []string{},
-				Attachments:    []Attachment{},
+				Attachments:    []*types.Attachment{},
 			}
 
 			if isSpecial {
-				specialCards = append(specialCards, baleenCard)
+				specialCards = append(specialCards, typesCard)
 			} else {
-				normalCards = append(normalCards, baleenCard)
+				normalCards = append(normalCards, typesCard)
 			}
 		}
 	}
 
 	specialCards = processSpecialCards(client, specialCards)
 
-	var baleenCards []Card
-	baleenCards = append(baleenCards, normalCards...)
-	baleenCards = append(baleenCards, specialCards...)
+	var typesCards []*types.Card
+	typesCards = append(typesCards, normalCards...)
+	typesCards = append(typesCards, specialCards...)
 
-	return baleenCards
+	return typesCards
 }
 
-func SaveCards(cards []Card) string {
+func SaveCards(cards []*types.Card) string {
 	file, _ := json.MarshalIndent(cards, "", "  ")
-	exportPath := path.Join("data", fmt.Sprintf("%s-trello.json", FormatTime(time.Now())))
+	exportPath := path.Join("data", fmt.Sprintf("%s-trello.json", types.FormatTime(time.Now())))
 	_ = ioutil.WriteFile(exportPath, file, 0644)
 	log.Printf("Export to %s\n", exportPath)
 
 	return exportPath
 }
 
-func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
-	chunks := ChunkEvery(specialCards, 10)
+func processSpecialCards(client *t.Client, specialCards []*types.Card) []*types.Card {
+	chunks := types.ChunkEvery(specialCards, 10)
 
-	var updatedSpecials []Card
+	var updatedSpecials []*types.Card
 	for i, chunk := range chunks {
-		c := make(chan []Card)
+		c := make(chan []*types.Card)
 		go parallelProcessSpecial(client, chunk[:len(chunk)/2], c)
 		go parallelProcessSpecial(client, chunk[len(chunk)/2:], c)
 
@@ -93,8 +97,8 @@ func processSpecialCards(client *trello.Client, specialCards []Card) []Card {
 	return updatedSpecials
 }
 
-func parallelProcessSpecial(client *trello.Client, specialCards []Card, c chan []Card) {
-	var cards []Card
+func parallelProcessSpecial(client *t.Client, specialCards []*types.Card, c chan []*types.Card) {
+	var cards []*types.Card
 	for _, card := range specialCards {
 		comments, attachments := getSpecial(client, card.Id)
 		card.Comments = comments
@@ -105,11 +109,11 @@ func parallelProcessSpecial(client *trello.Client, specialCards []Card, c chan [
 	c <- cards
 }
 
-func getSpecial(client *trello.Client, cardId string) ([]string, []Attachment) {
+func getSpecial(client *t.Client, cardId string) ([]string, []*types.Attachment) {
 	comments := []string{}
-	attachments := []Attachment{}
+	attachments := []*types.Attachment{}
 
-	var specialCard *trello.Card
+	var specialCard *t.Card
 	client.Get(
 		fmt.Sprintf("cards/%s", cardId),
 		map[string]string{
@@ -128,7 +132,7 @@ func getSpecial(client *trello.Client, cardId string) ([]string, []Attachment) {
 	}
 
 	for _, attachment := range specialCard.Attachments {
-		attachments = append(attachments, Attachment{
+		attachments = append(attachments, &types.Attachment{
 			IsUpload: attachment.IsUpload,
 			Name:     attachment.Name,
 			Url:      attachment.URL,

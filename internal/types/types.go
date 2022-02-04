@@ -1,4 +1,4 @@
-package baleen
+package types
 
 import "time"
 
@@ -9,11 +9,11 @@ type Card struct {
 	Name           string
 	Description    string
 	ParentListName string
-	Labels         []Label
+	Labels         []*Label
 	LastUpdate     *time.Time
 	IsSpecial      bool
 	Comments       []string
-	Attachments    []Attachment
+	Attachments    []*Attachment
 }
 
 type Label struct {
