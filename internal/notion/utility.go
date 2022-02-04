@@ -1,6 +1,7 @@
 package notion
 
 import (
+	"math"
 	"time"
 
 	na "github.com/jomei/notionapi"
@@ -120,18 +121,11 @@ func basicBlock(t na.BlockType) na.BasicBlock {
 }
 
 func richText(content, link string) []na.RichText {
-	if link != noLink {
-		return []na.RichText{
-			{
-				Text: na.Text{
-					Content: content,
-					Link: &na.Link{
-						Url: link,
-					},
-				},
-			},
-		}
-	} else {
+	texts := chunkEvery(content, 2000)
+
+	var richTexts []na.RichText
+
+	if len(content) == 0 {
 		return []na.RichText{
 			{
 				Text: na.Text{
@@ -140,6 +134,29 @@ func richText(content, link string) []na.RichText {
 			},
 		}
 	}
+
+	for _, text := range texts {
+		rt := na.RichText{
+			Text: na.Text{
+				Content: text,
+			},
+		}
+
+		if link != noLink {
+			rt = na.RichText{
+				Text: na.Text{
+					Content: text,
+					Link: &na.Link{
+						Url: link,
+					},
+				},
+			}
+		}
+
+		richTexts = append(richTexts, rt)
+	}
+
+	return richTexts
 }
 
 func contains(s string, arr []string) bool {
@@ -150,4 +167,19 @@ func contains(s string, arr []string) bool {
 	}
 
 	return false
+}
+
+func chunkEvery(content string, n int) []string {
+	totalChunks := int(math.Ceil(float64(len(content)) / float64(n)))
+	chunks := []string{}
+
+	for i := 0; i < totalChunks; i++ {
+		if i == totalChunks-1 {
+			chunks = append(chunks, content[i*n:])
+		} else {
+			chunks = append(chunks, content[i*n:i*n+n])
+		}
+	}
+
+	return chunks
 }

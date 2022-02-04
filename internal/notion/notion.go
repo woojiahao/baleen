@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/jomei/notionapi"
 	"github.com/woojiahao/baleen/internal/config"
@@ -119,21 +120,28 @@ func importCard(
 	_, pl := urlAttachments.first()
 
 	properties := createProperties(card, primaryLink(pl))
-	children := createChildren(fileAttachments, urlAttachments, card.Comments)
+	children := createChildren(fileAttachments, urlAttachments, card.Description, card.Comments)
 
-	_, err := notion.Page.Create(context.Background(), &notionapi.PageCreateRequest{
+	request := &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
 			DatabaseID: notionapi.DatabaseID((*nameIds)[databaseName(config.Database[card.ParentListName])]),
 		},
 		Properties: properties,
 		Children:   children,
-	})
+	}
+
+	_, err := notion.Page.Create(context.Background(), request)
+
+	for err != nil {
+		log.Printf("Error occurred when adding card (%s) to database: %v\n", card.Name, err)
+		j, _ := json.MarshalIndent(request, "", "  ")
+		log.Printf("Request was: %v\n", string(j))
+		log.Printf("Trying again after 2s wait...")
+		time.Sleep(2 * time.Second)
+		_, err = notion.Page.Create(context.Background(), request)
+	}
 
 	log.Printf("Added card %s\n", card.Name)
-
-	if err != nil {
-		log.Fatalf("Error occurred when adding cards to database: %v\n", err)
-	}
 
 	c <- true
 }
@@ -174,7 +182,13 @@ func createProperties(card *types.Card, pl primaryLink) notionapi.Properties {
 	properties := notionapi.Properties{}
 
 	properties["Name"] = titleProperty(card.Name)
-	properties["Description"] = richTextProperty(card.Description, noLink)
+
+	description := card.Description
+	descriptionLimit := 60
+	if len(description) > descriptionLimit {
+		description = description[:descriptionLimit]
+	}
+	properties["Description"] = richTextProperty(description, noLink)
 
 	if pl != "null" {
 		properties["Primary Link"] = urlProperty(string(pl))
@@ -191,7 +205,7 @@ func createProperties(card *types.Card, pl primaryLink) notionapi.Properties {
 	return properties
 }
 
-func createChildren(fileAttachments, urlAttachments *attachments, comments []string) []notionapi.Block {
+func createChildren(fileAttachments, urlAttachments *attachments, description string, comments []string) []notionapi.Block {
 	var children []notionapi.Block
 
 	children = append(children, heading1("File Attachments"))
@@ -208,6 +222,9 @@ func createChildren(fileAttachments, urlAttachments *attachments, comments []str
 	for _, comment := range comments {
 		children = append(children, paragraph(comment))
 	}
+
+	children = append(children, heading1("Description"))
+	children = append(children, paragraph(description))
 
 	return children
 }
