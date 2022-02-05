@@ -137,7 +137,7 @@ func importCard(
 	properties := createProperties(config, card, primaryLink(pl))
 	children := createChildren(fileAttachments, urlAttachments, card.Description, card.Comments)
 
-	tries := 1
+	tries, maxTries := 1, 3
 
 	request := &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
@@ -150,17 +150,22 @@ func importCard(
 	_, err := notion.Page.Create(context.Background(), request)
 
 	// Try three more times in case it's just a timeout issue
-	for err != nil && tries < 4 {
+	for err != nil && tries < maxTries {
 		tries++
+		wait := tries * 2
+
 		log.Printf("Error occurred when adding card (%s) to database: %v\n", card.Name, err)
+
 		j, _ := json.MarshalIndent(request, "", "  ")
 		log.Printf("Request was: %v\n", string(j))
-		log.Printf("Trying again after 2s wait... (Try %d)\n", tries)
-		time.Sleep(2 * time.Second)
+
+		log.Printf("Trying again after %ds wait... (Try %d)\n", wait, tries)
+		time.Sleep(time.Duration(wait) * time.Second)
+
 		_, err = notion.Page.Create(context.Background(), request)
 	}
 
-	if tries >= 4 {
+	if tries >= maxTries {
 		log.Printf("Unable to add card %s. Saving for inspection later.\n", card.Name)
 		c <- card
 	} else {
