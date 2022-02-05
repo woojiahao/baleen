@@ -84,20 +84,22 @@ func LoadSave(exportPath string) []*types.Card {
 
 // Add a card to its respective database
 func importCards(config *config.Config, notion *notionapi.Client, nameIds *databaseNameIds, cards []*types.Card) {
-	log.Printf("Adding cards to database")
+	log.Printf("Adding cards to database\n")
 
 	chunks := types.ChunkEvery(cards, 3)
-	c := make(chan bool, 3)
+	c := make(chan *types.Card, 3)
+	var errCards []*types.Card
 
 	for i, chunk := range chunks {
 		for _, card := range chunk {
 			go importCard(config, notion, nameIds, card, c)
 		}
 
-		f, s, t := <-c, <-c, <-c
-
-		if !(f && s && t) {
-			log.Fatalf("Failed to import a card\n")
+		for i := 0; i < len(c); i++ {
+			errCard := <-c
+			if errCard != nil {
+				errCards = append(errCards, errCard)
+			}
 		}
 
 		if (i+1)%15 == 0 {
@@ -105,15 +107,19 @@ func importCards(config *config.Config, notion *notionapi.Client, nameIds *datab
 		}
 	}
 
-	log.Printf("Imported all cards!")
+	log.Printf("Imported all cards!\n")
+	errPath := types.SaveCards(errCards, "errors")
+	log.Printf("Saved error cards to %s\n", errPath)
 }
 
+// Emits nil to the channel if the card didn't occur any errors. A returned card will indicate that the card has failed
+// to be added.
 func importCard(
 	config *config.Config,
 	notion *notionapi.Client,
 	nameIds *databaseNameIds,
 	card *types.Card,
-	c chan bool,
+	c chan *types.Card,
 ) {
 	fileAttachments, urlAttachments := organizeAttachments(card)
 
@@ -121,6 +127,8 @@ func importCard(
 
 	properties := createProperties(card, primaryLink(pl))
 	children := createChildren(fileAttachments, urlAttachments, card.Description, card.Comments)
+
+	tries := 1
 
 	request := &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
@@ -132,18 +140,23 @@ func importCard(
 
 	_, err := notion.Page.Create(context.Background(), request)
 
-	for err != nil {
+	// Try three more times in case it's just a timeout issue
+	for err != nil && tries < 4 {
 		log.Printf("Error occurred when adding card (%s) to database: %v\n", card.Name, err)
 		j, _ := json.MarshalIndent(request, "", "  ")
 		log.Printf("Request was: %v\n", string(j))
-		log.Printf("Trying again after 2s wait...")
+		log.Printf("Trying again after 2s wait... (Try %d)\n", tries)
 		time.Sleep(2 * time.Second)
 		_, err = notion.Page.Create(context.Background(), request)
 	}
 
-	log.Printf("Added card %s\n", card.Name)
-
-	c <- true
+	if tries >= 4 {
+		log.Printf("Unable to add card %s. Saving for inspection later.\n", card.Name)
+		c <- card
+	} else {
+		log.Printf("Added card %s\n", card.Name)
+		c <- nil
+	}
 }
 
 // Add the necessary properties for importing Trello information into a Notion card

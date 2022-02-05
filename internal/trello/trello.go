@@ -80,27 +80,6 @@ func ExportTrelloBoard(boardName, envPath string) []*types.Card {
 	return typesCards
 }
 
-func SaveCards(cards []*types.Card) string {
-	file, _ := json.MarshalIndent(cards, "", "  ")
-	exportPath := path.Join("data", "saves", fmt.Sprintf("%s.json", types.FormatTime(time.Now())))
-
-	if _, err := os.Stat(path.Join("data", "saves")); os.IsNotExist(err) {
-		err = os.Mkdir(path.Join("data", "saves"), 0777)
-		if err != nil {
-			log.Fatalf("Failed to create save folder: %v\n", err)
-		}
-	}
-
-	err := ioutil.WriteFile(exportPath, file, 0644)
-	if err != nil {
-		log.Fatalf("Failed to save file to %s: %v\n", exportPath, err)
-	}
-
-	log.Printf("Exported to %s\n", exportPath)
-
-	return exportPath
-}
-
 func processSpecialCards(client *t.Client, specialCards []*types.Card) []*types.Card {
 	log.Println("Processing special cards...")
 

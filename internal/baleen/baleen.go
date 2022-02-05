@@ -3,13 +3,18 @@ package baleen
 import (
 	"github.com/woojiahao/baleen/internal/notion"
 	"github.com/woojiahao/baleen/internal/trello"
+	"github.com/woojiahao/baleen/internal/types"
+)
+
+const (
+	savePath = "saves"
 )
 
 // Performs full migration from Trello board to Notion
 func Migrate(trelloBoardName, configPath, envPath string, toSave bool) {
 	cards := trello.ExportTrelloBoard(trelloBoardName, envPath)
 	if toSave {
-		trello.SaveCards(cards)
+		types.SaveCards(cards, savePath)
 	}
 
 	notion.ImportToNotion(cards, envPath, configPath)
@@ -19,4 +24,9 @@ func Migrate(trelloBoardName, configPath, envPath string, toSave bool) {
 func Import(savePath, configPath, envPath string) {
 	cards := notion.LoadSave(savePath)
 	notion.ImportToNotion(cards, envPath, configPath)
+}
+
+func ExportAndSave(trelloBoardName, envPath string) {
+	cards := trello.ExportTrelloBoard(trelloBoardName, envPath)
+	types.SaveCards(cards, savePath)
 }
