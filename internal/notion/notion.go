@@ -95,11 +95,17 @@ func importCards(config *config.Config, notion *notionapi.Client, nameIds *datab
 			go importCard(config, notion, nameIds, card, c)
 		}
 
-		for i := 0; i < len(c); i++ {
-			errCard := <-c
-			if errCard != nil {
-				errCards = append(errCards, errCard)
-			}
+		f, s, t := <-c, <-c, <-c
+		if f != nil {
+			errCards = append(errCards, f)
+		}
+
+		if s != nil {
+			errCards = append(errCards, s)
+		}
+
+		if t != nil {
+			errCards = append(errCards, t)
 		}
 
 		if (i+1)%15 == 0 {
@@ -142,6 +148,7 @@ func importCard(
 
 	// Try three more times in case it's just a timeout issue
 	for err != nil && tries < 4 {
+		tries++
 		log.Printf("Error occurred when adding card (%s) to database: %v\n", card.Name, err)
 		j, _ := json.MarshalIndent(request, "", "  ")
 		log.Printf("Request was: %v\n", string(j))

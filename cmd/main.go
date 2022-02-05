@@ -34,27 +34,23 @@ func main() {
 			&cli.StringFlag{
 				Name:        "config",
 				Aliases:     []string{"c"},
-				Value:       "config/conf.json",
+				Value:       "configs/conf.json",
 				Usage:       "specify the configuration JSON for the migration",
 				Destination: &configPath,
-			},
-			&cli.StringFlag{
-				Name:        "savePath",
-				Aliases:     []string{"sp"},
-				Usage:       "specify the path of a save file",
-				Destination: &savePath,
-			},
-			&cli.BoolFlag{
-				Name:        "save",
-				Aliases:     []string{"s"},
-				Value:       true,
-				Usage:       "specify whether to save files during migration (used in \"baleen migrate\")",
-				Destination: &toSave,
 			},
 		},
 		Commands: []*cli.Command{
 			{
-				Name:  "migrate",
+				Name: "migrate",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        "save",
+						Aliases:     []string{"s"},
+						Value:       true,
+						Usage:       "specify whether to save files during migration (used in \"baleen migrate\")",
+						Destination: &toSave,
+					},
+				},
 				Usage: "exports a Trello board into the integrated Notion page (full flow from saving exports to importing to Notion)",
 				Action: func(c *cli.Context) error {
 					baleen.Migrate(boardName, configPath, envPath, toSave)
@@ -63,7 +59,15 @@ func main() {
 			},
 			{
 				Name:  "import",
-				Usage: "imports saved cards into Notion (cards saved from \"baleen migrate\" or \"baleen export\"",
+				Usage: "imports saved cards into Notion (cards saved from \"baleen migrate\" or \"baleen export\")",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "savePath",
+						Aliases:     []string{"sp"},
+						Usage:       "specify the path of a save file",
+						Destination: &savePath,
+					},
+				},
 				Action: func(c *cli.Context) error {
 					if savePath == "" {
 						return fmt.Errorf("save path not specified")

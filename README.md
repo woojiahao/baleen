@@ -17,16 +17,32 @@ Create a file `.env` at the root of the project directory with the following fie
 TRELLO_API_KEY=<>
 # Create Trello token by selecting "Token" in the page above
 TRELLO_TOKEN=<>
-# Get target Trello board ID, follow instructions here: https://community.atlassian.com/t5/Trello-questions/How-to-get-Trello-Board-ID/qaq-p/1347525
-TRELLO_BOARD_ID=<>
 # Create Notion Integration key here: https://www.notion.so/my-integrations
 NOTION_INTEGRATION_KEY=<>
 ```
 
-Run the CLI.
+Run the CLI for the available commands.
 
 ```bash
 go run cmd/main.go
+
+NAME:
+   main - A new cli application
+
+USAGE:
+   main [global options] command [command options] [arguments...]
+
+COMMANDS:
+   export   exports a Trello board and creates a save file (to import, use "baleen import <save path>"
+   import   imports saved cards into Notion (cards saved from "baleen migrate" or "baleen export")
+   migrate  exports a Trello board into the integrated Notion page (full flow from saving exports to importing to Notion)
+   help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --board value, -b value   specify name of Trello board (default: "Programming Bucket")
+   --config value, -c value  specify the configuration JSON for the migration (default: "configs/conf.json")
+   --env value, -e value     specify the environment file hodling the API keys (default: ".env")
+   --help, -h                show help (default: false)
 ```
 
 ## Motivation
@@ -53,7 +69,6 @@ with the latest Go features.
 - [ ] Migrate any image attachments to be hosted on Google Drive and embed them into the page
 - [ ] Ignore any attachments taht start with https://docs.google.com/viewer?embedded=true
 - [ ] Add support for image attachments
-- [ ]
 
 ### Documentation
 
