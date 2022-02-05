@@ -114,8 +114,11 @@ func importCards(config *config.Config, notion *notionapi.Client, nameIds *datab
 	}
 
 	log.Printf("Imported all cards!\n")
-	errPath := types.SaveCards(errCards, "errors")
-	log.Printf("Saved error cards to %s\n", errPath)
+
+	if errCards != nil {
+		errPath := types.SaveCards(errCards, "errors")
+		log.Printf("Saved error cards to %s\n", errPath)
+	}
 }
 
 // Emits nil to the channel if the card didn't occur any errors. A returned card will indicate that the card has failed
