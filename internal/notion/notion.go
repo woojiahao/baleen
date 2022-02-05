@@ -86,13 +86,19 @@ func LoadSave(exportPath string) []*types.Card {
 func importCards(config *config.Config, notion *notionapi.Client, nameIds *databaseNameIds, cards []*types.Card) {
 	log.Printf("Adding cards to database\n")
 
-	chunks := types.ChunkEvery(cards, 3)
-	c := make(chan *types.Card, 3)
+	chunkSize := 3
+	chunks := types.ChunkEvery(cards, chunkSize)
+	c := make(chan *types.Card, chunkSize)
 	var errCards []*types.Card
 
 	for i, chunk := range chunks {
 		for _, card := range chunk {
 			go importCard(config, notion, nameIds, card, c)
+		}
+
+		// Account for chunks with less than 3 cards by creating nil card that importCard will ignore
+		for j := 0; j < chunkSize-len(chunks)-1; j++ {
+			go importCard(config, notion, nameIds, nil, c)
 		}
 
 		f, s, t := <-c, <-c, <-c
@@ -130,6 +136,11 @@ func importCard(
 	card *types.Card,
 	c chan *types.Card,
 ) {
+	if card == nil {
+		c <- nil
+		return
+	}
+
 	fileAttachments, urlAttachments := organizeAttachments(card)
 
 	_, pl := urlAttachments.first()
