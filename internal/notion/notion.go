@@ -61,7 +61,7 @@ func ImportToNotion(cards []*types.Card, envPath, configPath string) {
 	nameIds := getDatabaseNameIds(notion, config.DatabaseNames())
 	labels := extractLabels(config, cards)
 
-	addDatabaseProperties(notion, nameIds, labels)
+	addDatabaseProperties(config, notion, nameIds, labels)
 	importCards(config, notion, nameIds, cards)
 }
 
@@ -134,7 +134,7 @@ func importCard(
 
 	_, pl := urlAttachments.first()
 
-	properties := createProperties(card, primaryLink(pl))
+	properties := createProperties(config, card, primaryLink(pl))
 	children := createChildren(fileAttachments, urlAttachments, card.Description, card.Comments)
 
 	tries := 1
@@ -171,18 +171,26 @@ func importCard(
 
 // Add the necessary properties for importing Trello information into a Notion card
 // Properties include a Description, Primary Link (first link in the attachments), Labels, and Last Updated
-func addDatabaseProperties(notion *notionapi.Client, nameIds *databaseNameIds, labels []*types.Label) {
+func addDatabaseProperties(
+	config *config.Config,
+	notion *notionapi.Client,
+	nameIds *databaseNameIds,
+	labels []*types.Label,
+) {
 	log.Printf("Adding properties to database")
 
+	labelOptions := organizeLabels(config, labels)
+
 	for name, id := range *nameIds {
-		request := &notionapi.DatabaseUpdateRequest{
-			Properties: notionapi.PropertyConfigs{
-				"Description":  richTextConfig(),
-				"Primary Link": urlConfig(),
-				"Labels":       multiSelectConfig(organizeLabels(labels)),
-				"Last Updated": dateConfig(),
-			},
+		properties := make(notionapi.PropertyConfigs)
+		properties["Description"] = richTextConfig()
+		properties["Primary Link"] = urlConfig()
+		if len(labelOptions) > 0 {
+			properties["Labels"] = multiSelectConfig(labelOptions)
 		}
+		properties["Last Updated"] = dateConfig()
+
+		request := &notionapi.DatabaseUpdateRequest{Properties: properties}
 		_, err := notion.Database.Update(context.Background(), notionapi.DatabaseID(id), request)
 
 		if err != nil {
@@ -191,15 +199,15 @@ func addDatabaseProperties(notion *notionapi.Client, nameIds *databaseNameIds, l
 	}
 }
 
-func createProperties(card *types.Card, pl primaryLink) notionapi.Properties {
-	labelOptions := organizeLabels(card.Labels)
+func createProperties(config *config.Config, card *types.Card, pl primaryLink) notionapi.Properties {
+	labelOptions := organizeLabels(config, card.Labels)
 
 	properties := notionapi.Properties{}
 
 	properties["Name"] = titleProperty(card.Name)
 
 	description := card.Description
-	descriptionLimit := 60
+	descriptionLimit := 100
 	if len(description) > descriptionLimit {
 		description = description[:descriptionLimit]
 	}
@@ -244,17 +252,23 @@ func createChildren(fileAttachments, urlAttachments *attachments, description st
 	return children
 }
 
-func organizeLabels(labels []*types.Label) []notionapi.Option {
+// Organize a list of labels into a list of options for Notion
+func organizeLabels(config *config.Config, labels []*types.Label) []notionapi.Option {
 	if labels == nil {
 		return []notionapi.Option{}
 	}
 
 	var options []notionapi.Option
 	for _, label := range labels {
-		options = append(options, notionapi.Option{
+		option := notionapi.Option{
 			Name:  label.Name,
 			Color: notionapi.Color(label.Color),
-		})
+		}
+		if alt, ok := config.Color[label.Color]; ok {
+			option.Color = notionapi.Color(alt)
+		}
+
+		options = append(options, option)
 	}
 	return options
 }
@@ -275,6 +289,7 @@ func organizeAttachments(card *types.Card) (fileAttachments, urlAttachments *att
 	return
 }
 
+// Extracts the unique labels from a list of cards
 func extractLabels(config *config.Config, cards []*types.Card) []*types.Label {
 	labelsMap := make(map[string]string)
 

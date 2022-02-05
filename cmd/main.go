@@ -84,6 +84,14 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "archive",
+				Usage: "archives all cards in lists in Trello",
+				Action: func(c *cli.Context) error {
+					baleen.ClearBoard(boardName, envPath)
+					return nil
+				},
+			},
 		},
 	}
 

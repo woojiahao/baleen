@@ -30,3 +30,7 @@ func ExportAndSave(trelloBoardName, envPath string) {
 	cards := trello.ExportTrelloBoard(trelloBoardName, envPath)
 	types.SaveCards(cards, savePath)
 }
+
+func ClearBoard(trelloBoardName, envPath string) {
+	trello.ArchiveAll(trelloBoardName, envPath)
+}

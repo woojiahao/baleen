@@ -3,27 +3,39 @@ package trello
 import (
 	"fmt"
 	"log"
+	"path"
 
 	t "github.com/adlio/trello"
 	"github.com/woojiahao/baleen/internal/env"
 	"github.com/woojiahao/baleen/internal/types"
 )
 
+func ArchiveAll(boardName, envPath string) {
+	log.Printf("Archiving all lists in %s\n", boardName)
+
+	env := env.New(envPath)
+	client := t.NewClient(env.TrelloKey, env.TrelloToken)
+	lists := getLists(client, boardName)
+
+	for _, list := range lists {
+		err := client.Post(
+			path.Join("lists", list.ID, "archiveAllCards"),
+			t.Arguments{},
+			nil,
+		)
+
+		if err != nil {
+			log.Fatalf("Failed to archive %s: %v\n", list.Name, err)
+		}
+	}
+}
+
 func ExportTrelloBoard(boardName, envPath string) []*types.Card {
 	log.Printf("Extracting Trello board %s\n", boardName)
 
 	env := env.New(envPath)
 	client := t.NewClient(env.TrelloKey, env.TrelloToken)
-
-	boards, err := client.SearchBoards(boardName)
-	if err != nil {
-		log.Fatalf("Failed to find %s: %v\n", boardName, err)
-	}
-
-	lists, err := boards[0].GetLists()
-	if err != nil {
-		log.Fatalf("Failed to get lists of board %s: %v\n", boardName, err)
-	}
+	lists := getLists(client, boardName)
 
 	var normalCards, specialCards []*types.Card
 
@@ -73,6 +85,20 @@ func ExportTrelloBoard(boardName, envPath string) []*types.Card {
 	typesCards = append(typesCards, normalCards...)
 
 	return typesCards
+}
+
+func getLists(client *t.Client, boardName string) []*t.List {
+	boards, err := client.SearchBoards(boardName)
+	if err != nil {
+		log.Fatalf("Failed to find %s: %v\n", boardName, err)
+	}
+
+	lists, err := boards[0].GetLists()
+	if err != nil {
+		log.Fatalf("Failed to get lists of board %s: %v\n", boardName, err)
+	}
+
+	return lists
 }
 
 func processSpecialCards(client *t.Client, specialCards []*types.Card) []*types.Card {
