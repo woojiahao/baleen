@@ -1,13 +1,8 @@
 package trello
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path"
-	"time"
 
 	t "github.com/adlio/trello"
 	"github.com/woojiahao/baleen/internal/env"
