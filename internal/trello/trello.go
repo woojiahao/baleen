@@ -18,15 +18,17 @@ func ArchiveAll(boardName, envPath string) {
 	lists := getLists(client, boardName)
 
 	for _, list := range lists {
-		err := client.Post(
+		log.Printf("Archiving %s\n", list.Name)
+
+		var burner interface{}
+
+		client.Post(
 			path.Join("lists", list.ID, "archiveAllCards"),
 			t.Arguments{},
-			nil,
+			burner,
 		)
 
-		if err != nil {
-			log.Fatalf("Failed to archive %s: %v\n", list.Name, err)
-		}
+		log.Printf("Archived %s\n", list.Name)
 	}
 }
 
