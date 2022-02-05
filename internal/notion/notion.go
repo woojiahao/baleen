@@ -171,20 +171,12 @@ func importCard(
 func addDatabaseProperties(notion *notionapi.Client, nameIds *databaseNameIds, labels []*types.Label) {
 	log.Printf("Adding properties to database")
 
-	var labelOptions []notionapi.Option
-	for _, label := range labels {
-		labelOptions = append(labelOptions, notionapi.Option{
-			Name:  label.Name,
-			Color: notionapi.Color(label.Color),
-		})
-	}
-
 	for name, id := range *nameIds {
 		request := &notionapi.DatabaseUpdateRequest{
 			Properties: notionapi.PropertyConfigs{
 				"Description":  richTextConfig(),
 				"Primary Link": urlConfig(),
-				"Labels":       multiSelectConfig(labelOptions),
+				"Labels":       multiSelectConfig(organizeLabels(labels)),
 				"Last Updated": dateConfig(),
 			},
 		}
@@ -250,10 +242,15 @@ func createChildren(fileAttachments, urlAttachments *attachments, description st
 }
 
 func organizeLabels(labels []*types.Label) []notionapi.Option {
+	if labels == nil {
+		return []notionapi.Option{}
+	}
+
 	var options []notionapi.Option
 	for _, label := range labels {
 		options = append(options, notionapi.Option{
-			Name: label.Name,
+			Name:  label.Name,
+			Color: notionapi.Color(label.Color),
 		})
 	}
 	return options
