@@ -16,6 +16,8 @@ func main() {
 	var toSave bool
 
 	app := &cli.App{
+		Name:  "baleen",
+		Usage: "migrate your Trello thoughts board to Notion",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "board",
